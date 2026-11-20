@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CW 聖誕降臨曆</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root{
+  --ink:#16120f; --panel:#221c18; --line:#3a302a;
+  --rose:#d8a48f; --rose-hi:#f3cdbd; --rose-lo:#9c6a58;
+  --cream:#f4e9e1; --mute:#a8978c; --pine:#3f6b55; --warn:#e8a07a;
+  --serif:"Noto Serif TC",Georgia,serif; --sans:"Noto Sans TC",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--ink);color:var(--cream);font-family:var(--sans);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.test{font-size:12px;color:var(--warn);border:1px dashed var(--warn);border-radius:8px;padding:8px 10px}
+header h1{font-family:var(--serif);font-weight:900;font-size:30px;line-height:1.2;margin:0;
+  background:linear-gradient(100deg,var(--rose-lo),var(--rose-hi) 45%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{margin:4px 0 0;color:var(--mute);font-size:13px;letter-spacing:.04em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lbl{font-size:12px;letter-spacing:.12em;color:var(--mute)}
+.count{font-family:var(--serif);font-size:22px;color:var(--rose-hi);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px}
+.cell{aspect-ratio:1;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:11px;color:var(--mute);position:relative}
+.cell.ms{border-color:var(--rose-lo);color:var(--rose)}
+.cell.on{background:radial-gradient(circle at 35% 30%,var(--rose-hi),var(--rose) 55%,var(--rose-lo));color:var(--ink);border-color:transparent;font-weight:700}
+.cell.ms::after{content:"";position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:var(--pine);box-shadow:0 0 0 2px var(--panel)}
+.legend{margin-top:10px;font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.legend i{width:8px;height:8px;border-radius:50%;background:var(--pine);display:inline-block}
+button{font:inherit;cursor:pointer;border-radius:999px;border:0}
+button:focus-visible{outline:2px solid var(--rose-hi);outline-offset:2px}
+.primary{width:100%;padding:13px;background:linear-gradient(100deg,var(--rose-lo),var(--rose-hi) 50%,var(--rose));color:var(--ink);font-weight:700;font-size:16px}
+.primary:disabled{background:var(--line);color:var(--mute);cursor:default}
+.msg{min-height:22px;font-size:13px;color:var(--rose);margin-top:8px;text-align:center}
+.msg.err{color:var(--warn)}
+.tickets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tk{padding:8px 12px;border-radius:10px;border:1px solid var(--rose-lo);background:transparent;color:var(--rose-hi);font-size:13px}
+.tk[aria-pressed="true"]{background:var(--rose);color:var(--ink)}
+.tk.used{border-color:var(--line);color:var(--mute)}
+.empty{color:var(--mute);font-size:13px;margin:8px 0 0}
+.stage{position:relative;width:100%;aspect-ratio:3/2;border-radius:12px;overflow:hidden;margin-top:12px;touch-action:none;
+  background:repeating-linear-gradient(45deg,#2a221d 0 10px,#2e2520 10px 20px)}
+.prize{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:12px}
+.prize b{font-family:var(--serif);font-size:24px;color:var(--rose-hi)}
+.prize span{font-size:13px;color:var(--mute)}
+.code{display:flex;gap:6px;align-items:center}
+.code code{font-size:14px;letter-spacing:.08em;background:var(--ink);padding:4px 10px;border-radius:6px;color:var(--cream);user-select:all}
+.code button{background:var(--line);color:var(--cream);font-size:12px;padding:4px 10px}
+canvas{position:absolute;inset:0;width:100%;height:100%;transition:opacity .5s}
+.foot{font-size:12px;color:var(--mute);margin:0}
+.foot a{color:var(--rose)}
+#loading{text-align:center;color:var(--mute);padding:40px 0}
+@media (prefers-reduced-motion:reduce){canvas{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="test" id="testBar" hidden>測試模式：同一天可以重複集點。正式上線前會關閉。</div>
+
+  <header>
+    <h1>CW 聖誕降臨曆</h1>
+    <p>11/25 – 12/25・31 天集滿 25 格・刮開聖誕驚喜</p>
+  </header>
+
+  <div id="loading">載入中…</div>
+
+  <div id="app" hidden>
+    <div class="wrap" style="gap:18px">
+      <section class="card" aria-labelledby="p-h">
+        <div class="row"><span class="lbl" id="p-h">我的集點</span><span class="count"><span id="n">0</span> / 25</span></div>
+        <div class="grid" id="grid"></div>
+        <div class="legend"><i></i>第 1、7、14、21、25 格各解鎖一張刮刮卡</div>
+      </section>
+
+      <section class="card">
+        <button class="primary" id="checkin">今日集點</button>
+        <div class="msg" id="msg" role="status"></div>
+      </section>
+
+      <section class="card" aria-labelledby="t-h">
+        <div class="row"><span class="lbl" id="t-h">我的刮刮卡</span><span class="foot">最多 5 張</span></div>
+        <div class="tickets" id="tickets"></div>
+        <p class="empty" id="noTk">集到第 1 格就能拿到第一張。</p>
+        <div class="stage" id="stage" hidden>
+          <div class="prize" id="prize"></div>
+          <canvas id="foil" aria-label="刮刮卡塗層，用手指刮開"></canvas>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">購物金與折價券限官網 classicworld.com.tw 使用。活動辦法與個資告知請見 <a href="ACTIVITY_RULES_URL" target="_blank" rel="noopener">活動辦法</a>。</p>
+</div>
+
+<script>
+// ===== 設定（部署時填入）=====
+const LIFF_ID = '2012674753-cGoCEa5S';
+const API_URL = 'PASTE_APPS_SCRIPT_URL_HERE';
+
+const $ = id => document.getElementById(id);
+let state = null, cur = null, idToken = null;
+
+async function api(action, extra = {}) {
+  const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, idToken, ...extra }) });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || '發生錯誤，請稍後再試');
+  return data;
+}
+
+function say(text, err) { const m = $('msg'); m.textContent = text; m.classList.toggle('err', !!err); }
+
+function render() {
+  const s = state;
+  $('testBar').hidden = !s.testMode;
+  $('n').textContent = s.pts;
+  $('grid').innerHTML = Array.from({ length: s.total }, (_, i) => {
+    const k = i + 1, c = ['cell'];
+    if (s.milestones.includes(k)) c.push('ms');
+    if (k <= s.pts) c.push('on');
+    return `<div class="${c.join(' ')}">${k}</div>`;
+  }).join('');
+  const btn = $('checkin');
+  if (s.status === 'before') { btn.disabled = true; btn.textContent = '11/25 開始集點'; }
+  else if (s.status === 'after') { btn.disabled = true; btn.textContent = '活動已結束'; }
+  else if (s.pts >= s.total) { btn.disabled = true; btn.textContent = '已集滿 25 格'; }
+  else if (s.checkedToday) { btn.disabled = true; btn.textContent = '今天已集點，明天再來'; }
+  else { btn.disabled = false; btn.textContent = '今日集點'; }
+  $('tickets').innerHTML = s.tickets.map((t, i) =>
+    `<button class="tk${t.revealed ? ' used' : ''}" data-i="${i}" aria-pressed="${cur && cur.ms === t.ms}">第 ${t.ms} 格${t.revealed ? '・已刮' : ''}</button>`).join('');
+  $('noTk').hidden = s.tickets.length > 0;
+}
+
+$('checkin').onclick = async () => {
+  const btn = $('checkin'); btn.disabled = true; say('集點中…');
+  try {
+    state = await api('checkin');
+    if (state.unlocked) say(`集到第 ${state.unlocked} 格，解鎖一張刮刮卡！點下面的卡片刮開看看`);
+    else { const nx = state.milestones.find(m => m > state.pts); say(nx ? `集點成功！再 ${nx - state.pts} 格解鎖下一張` : '集點成功！'); }
+  } catch (e) { say(e.message, true); }
+  render();
+};
+
+$('tickets').onclick = async e => {
+  const b = e.target.closest('.tk'); if (!b) return;
+  const t = state.tickets[+b.dataset.i];
+  cur = t; render();
+  try {
+    if (!t.drawn) { const r = await api('draw', { ms: t.ms }); Object.assign(t, r.ticket); }
+    show(t);
+  } catch (err) { say(err.message, true); }
+};
+
+function show(t) {
+  const p = t.prize;
+  $('prize').innerHTML = `<b>${esc(p.name)}</b><span>${esc(p.desc)}</span>` +
+    (p.code ? `<div class="code"><code id="codeTxt">${esc(p.code)}</code><button id="copy">複製</button></div>` : '');
+  $('stage').hidden = false;
+  const cv = $('foil');
+  cv.style.opacity = t.revealed ? 0 : 1;
+  cv.style.pointerEvents = t.revealed ? 'none' : 'auto';
+  if (!t.revealed) paint();
+  const cp = $('copy');
+  if (cp) cp.onclick = () => {
+    navigator.clipboard.writeText(p.code).then(() => cp.textContent = '已複製').catch(() => {
+      const r = document.createRange(); r.selectNodeContents($('codeTxt'));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); cp.textContent = '請長按複製';
+    });
+  };
+}
+function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function paint() {
+  const cv = $('foil'), r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = x.createLinearGradient(0, 0, r.width, r.height);
+  g.addColorStop(0, '#9c6a58'); g.addColorStop(.45, '#f3cdbd'); g.addColorStop(.7, '#d8a48f'); g.addColorStop(1, '#b07e6b');
+  x.globalCompositeOperation = 'source-over'; x.fillStyle = g; x.fillRect(0, 0, r.width, r.height);
+  x.fillStyle = 'rgba(255,255,255,.08)';
+  for (let i = 0; i < 220; i++) x.fillRect(Math.random() * r.width, Math.random() * r.height, 1.5, 1.5);
+  x.fillStyle = '#3a2620'; x.textAlign = 'center'; x.font = "700 20px 'Noto Serif TC',serif";
+  x.fillText('刮開看看', r.width / 2, r.height / 2);
+  x.font = "12px 'Noto Sans TC',sans-serif"; x.fillText('用手指刮開塗層', r.width / 2, r.height / 2 + 24);
+}
+
+(function () {
+  const cv = $('foil'); let down = false, lastP = null;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  function scratch(e) {
+    if (!down || !cur || cur.revealed) return;
+    const x = cv.getContext('2d'), [px, py] = pos(e);
+    x.globalCompositeOperation = 'destination-out'; x.lineWidth = 34; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(...(lastP || [px, py])); x.lineTo(px, py); x.stroke(); lastP = [px, py];
+  }
+  function check() {
+    if (!cur || cur.revealed) return;
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let c = 0, n = 0;
+    for (let i = 3; i < d.length; i += 64) { n++; if (d[i] === 0) c++; }
+    if (c / n > .5) {
+      cur.revealed = true; cv.style.opacity = 0; cv.style.pointerEvents = 'none'; render();
+      api('reveal', { ms: cur.ms }).catch(() => {});
+    }
+  }
+  cv.addEventListener('pointerdown', e => { down = true; lastP = null; cv.setPointerCapture(e.pointerId); scratch(e); });
+  cv.addEventListener('pointermove', scratch);
+  cv.addEventListener('pointerup', () => { down = false; check(); });
+  cv.addEventListener('pointercancel', () => { down = false; });
+})();
+
+(async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    idToken = liff.getIDToken();
+    state = await api('state');
+    $('loading').hidden = true; $('app').hidden = false;
+    render();
+  } catch (e) {
+    $('loading').textContent = e.message || '載入失敗，請關閉後重新打開';
+  }
+})();
+</script>
+</body>
+</html>
