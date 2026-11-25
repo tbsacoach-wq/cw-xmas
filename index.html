@@ -108,10 +108,26 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwzCyDpdzYp5krjThKF-NIz
 const $ = id => document.getElementById(id);
 let state = null, cur = null, idToken = null;
 
+// LINE 的登入憑證約 1 小時過期；過期時自動重新登入一次（最多試 2 次，避免無限重整）
+function relogin() {
+  let n = 0;
+  try { n = Number(sessionStorage.getItem('cw_relogin')) || 0; } catch (e) {}
+  if (n >= 2) return false;
+  try { sessionStorage.setItem('cw_relogin', String(n + 1)); } catch (e) {}
+  liff.logout();
+  if (liff.isInClient()) location.reload();
+  else liff.login({ redirectUri: location.href });
+  return true;
+}
+
 async function api(action, extra = {}) {
   const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, idToken, ...extra }) });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || '發生錯誤，請稍後再試');
+  if (!data.ok) {
+    if (/登入已過期/.test(data.error || '') && relogin()) throw new Error('重新登入中…');
+    throw new Error(data.error || '發生錯誤，請稍後再試');
+  }
+  try { sessionStorage.removeItem('cw_relogin'); } catch (e) {}
   return data;
 }
 
@@ -219,6 +235,10 @@ function paint() {
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    const dec = liff.getDecodedIDToken();
+    if (!dec || dec.exp * 1000 < Date.now() + 60000) {
+      if (relogin()) { $('loading').textContent = '重新登入中…'; return; }
+    }
     idToken = liff.getIDToken();
     state = await api('state');
     $('loading').hidden = true; $('app').hidden = false;
