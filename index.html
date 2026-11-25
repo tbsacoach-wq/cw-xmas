@@ -45,6 +45,8 @@ button:focus-visible{outline:2px solid var(--rose-hi);outline-offset:2px}
 .tk{padding:8px 12px;border-radius:10px;border:1px solid var(--rose-lo);background:transparent;color:var(--rose-hi);font-size:13px}
 .tk[aria-pressed="true"]{background:var(--rose);color:var(--ink)}
 .tk.used{border-color:var(--line);color:var(--mute)}
+.tk.used[aria-pressed="true"]{color:var(--ink)}
+.claim input[type=checkbox]{accent-color:var(--rose);margin-top:2px}
 .empty{color:var(--mute);font-size:13px;margin:8px 0 0}
 .stage{position:relative;width:100%;aspect-ratio:3/2;border-radius:12px;overflow:hidden;margin-top:12px;touch-action:none;
   background:repeating-linear-gradient(45deg,#2a221d 0 10px,#2e2520 10px 20px)}
@@ -56,6 +58,15 @@ button:focus-visible{outline:2px solid var(--rose-hi);outline-offset:2px}
 .code button{background:var(--line);color:var(--cream);font-size:12px;padding:4px 10px}
 canvas{position:absolute;inset:0;width:100%;height:100%;transition:opacity .5s}
 .foot{font-size:12px;color:var(--mute);margin:0}
+.claim{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.claim .ch{font-family:var(--serif);font-size:18px;color:var(--rose-hi)}
+.claim p{margin:0;font-size:13px;color:var(--mute)}
+.claim label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--cream)}
+.claim input[type=text],.claim input[type=tel]{font:inherit;font-size:16px;background:var(--ink);color:var(--cream);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.claim input:focus-visible{outline:2px solid var(--rose-hi);outline-offset:1px}
+.claim .agree{flex-direction:row;align-items:flex-start;gap:8px;font-size:12px;color:var(--mute)}
+.claim code{font-size:18px;letter-spacing:.12em;background:var(--ink);padding:4px 10px;border-radius:6px;color:var(--rose-hi);user-select:all}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--mute);padding:7px 14px;font-size:13px}
 .foot a{color:var(--rose)}
 #loading{text-align:center;color:var(--mute);padding:40px 0}
 @media (prefers-reduced-motion:reduce){canvas{transition:none}}
@@ -93,6 +104,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transition:opacity .5s}
           <div class="prize" id="prize"></div>
           <canvas id="foil" aria-label="刮刮卡塗層，用手指刮開"></canvas>
         </div>
+        <div class="claim" id="claimBox" hidden></div>
       </section>
     </div>
   </div>
@@ -183,6 +195,7 @@ function show(t) {
   cv.style.opacity = t.revealed ? 0 : 1;
   cv.style.pointerEvents = t.revealed ? 'none' : 'auto';
   if (!t.revealed) paint();
+  showClaim(t);
   const cp = $('copy');
   if (cp) cp.onclick = () => {
     navigator.clipboard.writeText(p.code).then(() => cp.textContent = '已複製').catch(() => {
@@ -191,6 +204,39 @@ function show(t) {
     });
   };
 }
+// 聖誕大獎：刮開後在頁面填收件資料，資料直接綁定這個 LINE 帳號
+function showClaim(t, editing) {
+  const box = $('claimBox'), p = t && t.prize;
+  if (!p || !('claim' in p) || !t.revealed) { box.hidden = true; return; }
+  box.hidden = false;
+  if (p.claimed && !editing) {
+    box.innerHTML = `<b class="ch">收件資料已送出</b>
+      <p>你的領獎碼</p><div><code>${esc(p.claim)}</code></div>
+      <p>請截圖這個畫面，在 ${esc(p.deadline)} 前私訊 CW LINE 官方帳號你的領獎碼，完成領獎。2027/1/4 起依序處理寄送。</p>
+      <button class="ghost" id="cEdit" type="button">修改收件資料</button>`;
+    $('cEdit').onclick = () => showClaim(t, true);
+    return;
+  }
+  box.innerHTML = `<b class="ch">恭喜抽中聖誕大獎！</b>
+    <p>請填寫收件資料，送出後會拿到你的專屬領獎碼。</p>
+    <label>收件人姓名<input type="text" id="cName" maxlength="20" autocomplete="name"></label>
+    <label>手機<input type="tel" id="cPhone" inputmode="numeric" maxlength="10" placeholder="09xxxxxxxx" autocomplete="tel"></label>
+    <label>收件地址<input type="text" id="cAddr" maxlength="120" autocomplete="street-address"></label>
+    <label class="agree"><input type="checkbox" id="cOk"><span>我同意依活動辦法提供個人資料，僅用於本次獎品寄送與稅務申報</span></label>
+    <button class="primary" id="cSend" type="button">送出收件資料</button>
+    <div class="msg" id="cMsg" role="status"></div>`;
+  $('cSend').onclick = async () => {
+    const m = $('cMsg'), b = $('cSend');
+    if (!$('cOk').checked) { m.textContent = '請先勾選同意個人資料使用'; m.classList.add('err'); return; }
+    b.disabled = true; m.classList.remove('err'); m.textContent = '送出中…';
+    try {
+      const r = await api('claim', { ms: t.ms, name: $('cName').value, phone: $('cPhone').value, addr: $('cAddr').value });
+      Object.assign(t.prize, r.ticket.prize);
+      showClaim(t);
+    } catch (e) { m.textContent = e.message; m.classList.add('err'); b.disabled = false; }
+  };
+}
+
 function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 function paint() {
@@ -223,6 +269,7 @@ function paint() {
     if (c / n > .5) {
       cur.revealed = true; cv.style.opacity = 0; cv.style.pointerEvents = 'none'; render();
       api('reveal', { ms: cur.ms }).catch(() => {});
+      showClaim(cur);
     }
   }
   cv.addEventListener('pointerdown', e => { down = true; lastP = null; cv.setPointerCapture(e.pointerId); scratch(e); });
